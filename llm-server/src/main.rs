@@ -19,9 +19,7 @@ fn handle_client(mut stream: TcpStream) {
     };
     
     // Build the command to execute
-    let cmd = format!("llm llama infer -m ../model/ggml-wizardLM-7B.q4_2.bin -p \"{}\"", prompt);
-
-
+    let cmd = format!("llm llama infer -m model/ggml-wizardLM-7B.q4_2.bin -p \"{}\"", prompt);
     
     // Execute the command and capture the output
     let output: Output = Command::new("sh")
@@ -50,4 +48,3 @@ fn main() {
         });
     }
 }
-
