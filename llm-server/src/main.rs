@@ -3,6 +3,7 @@ use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::process::Command;
+use std::string::String;
 
 fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
@@ -29,8 +30,8 @@ fn handle_client(mut stream: TcpStream) {
     match cmd_output {
         Ok(output) => {
             if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let response = format!("HTTP/1.1 200 OK\r\n\r\n{}", stdout);
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let response = format!("HTTP/1.1 200 OK\r\n\r\n{}", remove_unwanted_parts(&stdout, prompt.to_string()));
                 stream.write(response.as_bytes()).unwrap();
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr);
@@ -45,6 +46,23 @@ fn handle_client(mut stream: TcpStream) {
     }
 
     stream.flush().unwrap();
+}
+
+fn remove_unwanted_parts(output: &str, prompt: String) -> String {
+    let mut lines = output.lines();
+    while let Some(line) = lines.next() {
+        if line.trim().is_empty() {
+            // Skip empty lines
+            continue;
+        }
+        if line.starts_with("✓ Loaded") || line.starts_with(&prompt) || line.contains(&prompt) {
+            // Skip unwanted lines
+            continue;
+        }
+        // Return the remaining lines as the inference output
+        return lines.collect::<Vec<&str>>().join("\n");
+    }
+    String::new()
 }
 
 fn main() {
