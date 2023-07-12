@@ -4,6 +4,7 @@ use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::process::Command;
 use std::string::String;
+use percent_encoding::percent_decode_str;
 
 fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
@@ -13,9 +14,11 @@ fn handle_client(mut stream: TcpStream) {
     let prompt = if let Some(index) = request.find("prompt=") {
         let start_index = index + 7; // Length of "prompt=" is 7
         let end_index = request[start_index..].find(' ').map(|i| start_index + i).unwrap_or(request.len());
-        &request[start_index..end_index]
+        let encoded_prompt = &request[start_index..end_index];
+        let decoded_prompt = percent_decode_str(encoded_prompt).decode_utf8().unwrap().to_string();
+        decoded_prompt.replace("+", " ")
     } else {
-        ""
+        "".to_string()
     };
 
     let cmd_output = Command::new("llm")
@@ -24,8 +27,10 @@ fn handle_client(mut stream: TcpStream) {
         .arg("-m")
         .arg("model/ggml-wizardLM-7B.q4_2.bin")
         .arg("-p")
-        .arg(prompt)
+        .arg(&prompt)
         .output();
+
+    println!("{}", prompt);
 
     match cmd_output {
         Ok(output) => {
@@ -62,6 +67,7 @@ fn remove_unwanted_parts(output: &str, prompt: String) -> String {
         // Return the remaining lines as the inference output
         return lines.collect::<Vec<&str>>().join("\n");
     }
+
     String::new()
 }
 
