@@ -36,36 +36,37 @@ fn handle_client(mut stream: TcpStream) {
         Ok(output) => {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let response = format!("HTTP/1.1 200 OK\r\n\r\n{}", remove_unwanted_parts(&stdout, prompt.to_string()));
-                stream.write(response.as_bytes()).unwrap();
+                let inference_output = remove_unwanted_parts(&stdout, &prompt);
+                let response = format!("HTTP/1.1 200 OK\r\n\r\n{}", inference_output);
+                if let Err(err) = stream.write_all(response.as_bytes()) {
+                    eprintln!("Error writing response: {:?}", err);
+                }
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let response = format!("HTTP/1.1 500 Internal Server Error\r\n\r\nCommand failed with error:\n{}", stderr);
-                stream.write(response.as_bytes()).unwrap();
+                if let Err(err) = stream.write_all(response.as_bytes()) {
+                    eprintln!("Error writing response: {:?}", err);
+                }
             }
         }
         Err(err) => {
             let response = format!("HTTP/1.1 500 Internal Server Error\r\n\r\nFailed to execute command: {}", err);
-            stream.write(response.as_bytes()).unwrap();
+            if let Err(err) = stream.write_all(response.as_bytes()) {
+                eprintln!("Error writing response: {:?}", err);
+            }
         }
     }
 
     stream.flush().unwrap();
 }
 
-fn remove_unwanted_parts(output: &str, prompt: String) -> String {
+fn remove_unwanted_parts(output: &str, prompt: &str) -> String {
     let mut lines = output.lines();
     while let Some(line) = lines.next() {
-        if line.trim().is_empty() {
-            // Skip empty lines
-            continue;
+        if line.starts_with(prompt) {
+            // Found the line that starts with the prompt, skip it and return the remaining lines as inference output
+            return lines.collect::<Vec<&str>>().join("\n");
         }
-        if line.starts_with("✓ Loaded") || line.starts_with(&prompt) || line.contains(&prompt) {
-            // Skip unwanted lines
-            continue;
-        }
-        // Return the remaining lines as the inference output
-        return lines.collect::<Vec<&str>>().join("\n");
     }
 
     String::new()
