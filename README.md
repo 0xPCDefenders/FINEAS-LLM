@@ -1,2 +1,2 @@
-# PHINEAS-LLM
-A fork of rustformers llm which integrates with PHINEAS for inferences on financial data
+# FINEAS-LLM
+A fork of rustformers llm which integrates with FINEAS for inferences on financial data
